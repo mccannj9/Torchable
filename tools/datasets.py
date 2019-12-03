@@ -4,9 +4,9 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
-from utensils.mnist import mnist_image_to_numpy
-from utensils.mnist import mnist_label_to_numpy
-from utensils.errors import TooManyTimestepsError
+from tools.mnist import mnist_image_to_numpy
+from tools.mnist import mnist_label_to_numpy
+from tools.errors import TooManyTimestepsError
 
 
 class MnistDataset(Dataset):

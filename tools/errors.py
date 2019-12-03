@@ -3,3 +3,7 @@
 
 class NotBuiltError(Exception):
     pass
+
+
+class TooManyTimestepsError(Exception):
+    pass
