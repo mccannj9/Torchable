@@ -45,7 +45,7 @@ class TorchModel(ABC, torch.nn.Module):
             torch.set_default_tensor_type('torch.cuda.FloatTensor')
             torch.backends.cudnn.benchmark = True
 
-        self.loss_function = Objective(loss_func_dict)
+        self.obj = Objective(loss_func_dict)
 
         self.opt = optimizer(self.parameters(), lr=learning_rate)
 
@@ -53,10 +53,6 @@ class TorchModel(ABC, torch.nn.Module):
         self.built = True
 
     def forward(self, inputs):
-        if not(self.built):
-            msg = "Run build method on model before first call!"
-            raise NotBuiltError(msg)
-
         pieces = OrderedDict()
         current_inputs = inputs
 
@@ -80,7 +76,45 @@ class Autoencoder(TorchModel):
         super().__init__(*args, **kwargs)
 
     def fit_batch(self, batch):
-        pass
+        if not(self.built):
+            msg = "Run build method on model before first call!"
+            raise NotBuiltError(msg)
 
-    def fit(self, inputs):
-        pass
+        self.opt.zero_grad()
+
+        # get outputs, standard autoencoder has only one
+        outputs = self.forward(batch)
+        keys = list(outputs.keys())
+        predictions = outputs[keys[-1]]
+
+        # reconstruction loss with batch as target
+        loss_params = ((predictions, batch),)
+        self.loss = self.obj(loss_params)
+        self.loss.backward()
+        self.opt.step()
+        return predictions
+
+    def fit(
+        self, inputs, nepochs=1, logint=100,
+        continue_counter=0, continue_epoch=0
+    ):
+
+        counter = continue_counter
+        nepochs += continue_epoch
+
+        self.train()
+        for i in range(continue_epoch, nepochs):
+            # assume inputs enum returns batch, target pair
+            # discard target for autoencoders, reconstruct batch
+            for j, (batch, _) in enumerate(inputs):
+                _ = self.fit_batch(batch)
+
+                if j % logint == 0:
+                    outmsg = f"[Epoch {i}, Batch {j} Loss] "
+                    outmsg += f"Total: {round(self.loss.item(), 3)}"
+                    for k in self.obj.losses:
+                        outmsg += f" {k}: " + str(
+                            round(self.obj.losses[k].item(), 3)
+                        )
+                    print(outmsg)
+                counter += 1
